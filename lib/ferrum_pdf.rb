@@ -1,6 +1,7 @@
 require "ferrum_pdf/version"
 require "ferrum_pdf/railtie"
 require "ferrum"
+require "ferrum/wait_for_selector"
 
 module FerrumPdf
   DEFAULT_HEADER_TEMPLATE = "<div class='date text left'></div><div class='title text center'></div>"
@@ -20,19 +21,19 @@ module FerrumPdf
       @browser ||= Ferrum::Browser.new(options)
     end
 
-    def render_pdf(html: nil, url: nil, host: nil, protocol: nil, authorize: nil, wait_for_idle_options: nil, wait_for_selector: nil, pdf_options: {})
+    def render_pdf(html: nil, url: nil, host: nil, protocol: nil, authorize: nil, wait_for_idle_options: {}, wait_for_selector: nil, pdf_options: {})
       render(host: host, protocol: protocol, html: html, url: url, authorize: authorize, wait_for_idle_options: wait_for_idle_options, wait_for_selector: wait_for_selector) do |page|
         page.pdf(**pdf_options.with_defaults(encoding: :binary))
       end
     end
 
-    def render_screenshot(html: nil, url: nil, host: nil, protocol: nil, authorize: nil, screenshot_options: {})
+    def render_screenshot(html: nil, url: nil, host: nil, protocol: nil, authorize: nil, wait_for_idle_options: {}, wait_for_selector: nil, screenshot_options: {})
       render(host: host, protocol: protocol, html: html, url: url, authorize: authorize) do |page|
         page.screenshot(**screenshot_options.with_defaults(encoding: :binary, full: true))
       end
     end
 
-    def render(host:, protocol:, html: nil, url: nil, authorize: nil, wait_for_idle_options: nil, wait_for_selector: nil)
+    def render(host:, protocol:, html: nil, url: nil, authorize: nil, wait_for_idle_options: {}, wait_for_selector: nil)
       browser.create_page do |page|
         page.network.authorize(**authorize) { |req| req.continue } if authorize
         if html
@@ -40,9 +41,11 @@ module FerrumPdf
         else
           page.go_to(url)
         end
+
         if wait_for_selector
-          browser.wait_for_selector(wait_for_selector)
+          page.wait_for_selector(wait_for_selector)
         end
+
         page.network.wait_for_idle(**wait_for_idle_options)
         yield page
       ensure
